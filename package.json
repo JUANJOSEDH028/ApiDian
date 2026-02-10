@@ -1,0 +1,22 @@
+{
+  "name": "dian-api-server",
+  "version": "1.0.0",
+  "description": "API server para consultar documentos DIAN por CUFE usando Playwright",
+  "main": "server-dian-api.js",
+  "scripts": {
+    "start": "node server-dian-api.js",
+    "dev": "node server-dian-api.js",
+    "test": "node dian-search-by-cufe.js"
+  },
+  "keywords": [
+    "dian",
+    "cufe",
+    "playwright",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "playwright": "^1.40.0"
+  }
+}
