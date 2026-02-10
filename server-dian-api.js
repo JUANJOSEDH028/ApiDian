@@ -8,6 +8,7 @@
  * Variables de entorno:
  *   PORT: Puerto donde escuchar (default: 3456)
  *   HOST: Host donde escuchar (default: '0.0.0.0' para aceptar conexiones de cualquier IP)
+ *   HEADLESS_MODE: 'true' para headless, 'false' para visible (default: 'true')
  * 
  * Endpoint:
  *   POST /search
@@ -16,7 +17,12 @@
  */
 
 const http = require('http');
-const { searchByCufe } = require('./dian-search-by-cufe.js');
+
+// Elegir entre modo headless o visible según variable de entorno
+const HEADLESS_MODE = process.env.HEADLESS_MODE !== 'false'; // Por defecto true (headless)
+const searchByCufe = HEADLESS_MODE 
+  ? require('./dian-search-by-cufe.js').searchByCufe
+  : require('./dian-search-by-cufe-visible.js').searchByCufe;
 
 const PORT = process.env.PORT || 3456;
 // IMPORTANTE: Escuchar en 0.0.0.0 para aceptar conexiones desde Docker y otras interfaces
@@ -90,6 +96,7 @@ server.listen(PORT, HOST, () => {
   console.log(`[API] Endpoint: POST http://${HOST}:${PORT}/search`);
   console.log(`[API] Health check: GET http://${HOST}:${PORT}/health`);
   console.log(`[API] Aceptando conexiones desde cualquier IP (0.0.0.0)`);
+  console.log(`[API] Modo: ${HEADLESS_MODE ? 'HEADLESS' : 'VISIBLE'} (configurar HEADLESS_MODE=false para modo visible)`);
 });
 
 // Manejar errores del servidor
