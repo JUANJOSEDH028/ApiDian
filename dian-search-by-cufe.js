@@ -78,47 +78,116 @@ async function searchByCufe(cufe) {
       console.log(`[DIAN] Widget Turnstile no encontrado, continuando...`);
     });
     
-    // Esperar un poco más para que la página termine de cargar scripts
-    await new Promise(r => setTimeout(r, 2000));
+    // Esperar a que los scripts de Turnstile se carguen completamente
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+    await new Promise(r => setTimeout(r, 3000));
+    
+    // Interactuar con la página para activar Turnstile
+    console.log(`[DIAN] Interactuando con la página para activar Turnstile...`);
+    try {
+      // Hacer scroll para activar eventos
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight / 2);
+      });
+      await new Promise(r => setTimeout(r, 1000));
+      
+      // Mover el mouse sobre el input para simular interacción humana
+      await page.hover('#DocumentKey');
+      await new Promise(r => setTimeout(r, 500));
+      
+      // Hacer clic en el input para activar Turnstile
+      await page.click('#DocumentKey', { delay: 100 });
+      await new Promise(r => setTimeout(r, 1000));
+    } catch (e) {
+      console.log(`[DIAN] Error al interactuar con la página: ${e.message}`);
+    }
 
-    // Esperar a que Turnstile se resuelva (máximo 20 segundos)
+    // Esperar a que Turnstile se resuelva (máximo 30 segundos)
     console.log(`[DIAN] Esperando resolución de Turnstile...`);
     let turnstileResolved = false;
     let turnstileValue = null;
     
-    try {
-      await page.waitForFunction(
-        () => {
+    // Escuchar eventos de Turnstile usando Promise
+    const turnstilePromise = page.evaluate(() => {
+      return new Promise((resolve) => {
+        // Verificar si ya está resuelto
+        const checkTurnstile = () => {
           const input = document.querySelector('input[name="cf-turnstile-response"]');
           if (input && input.value && input.value.length > 50) {
-            return input.value;
+            resolve(input.value);
+            return true;
           }
-          // También buscar por ID dinámico
-          const inputs = document.querySelectorAll('input[type="hidden"]');
-          for (const inp of inputs) {
-            if (inp.name === 'cf-turnstile-response' && inp.value && inp.value.length > 50) {
-              return inp.value;
-            }
+          return false;
+        };
+        
+        if (checkTurnstile()) return;
+        
+        // Escuchar cambios en el input
+        const observer = new MutationObserver(() => {
+          if (checkTurnstile()) {
+            observer.disconnect();
           }
-          return null;
-        },
-        { timeout: 20000, polling: 500 } // Verifica cada 500ms, máximo 20 segundos
-      );
-      
-      // Obtener el valor del token
-      turnstileValue = await page.evaluate(() => {
+        });
+        
         const input = document.querySelector('input[name="cf-turnstile-response"]');
-        return input ? input.value : null;
+        if (input) {
+          observer.observe(input, { attributes: true, attributeFilter: ['value'] });
+          
+          // También escuchar eventos de input
+          input.addEventListener('change', () => {
+            if (checkTurnstile()) {
+              observer.disconnect();
+            }
+          }, { once: true });
+        }
+        
+        // Timeout después de 30 segundos
+        setTimeout(() => {
+          observer.disconnect();
+          resolve(null);
+        }, 30000);
       });
+    });
+    
+    try {
+      // Esperar con timeout de 30 segundos
+      turnstileValue = await Promise.race([
+        turnstilePromise,
+        new Promise((resolve) => setTimeout(() => resolve(null), 30000))
+      ]);
       
-      turnstileResolved = true;
-      console.log(`[DIAN] Turnstile resuelto (${Date.now() - startTime}ms), token: ${turnstileValue ? turnstileValue.substring(0, 20) + '...' : 'null'}`);
+      if (turnstileValue) {
+        turnstileResolved = true;
+        console.log(`[DIAN] Turnstile resuelto (${Date.now() - startTime}ms), token: ${turnstileValue.substring(0, 20)}...`);
+      } else {
+        // Verificar una última vez manualmente
+        turnstileValue = await page.evaluate(() => {
+          const input = document.querySelector('input[name="cf-turnstile-response"]');
+          return input && input.value && input.value.length > 50 ? input.value : null;
+        });
+        
+        if (turnstileValue) {
+          turnstileResolved = true;
+          console.log(`[DIAN] Turnstile resuelto después de verificación manual (${Date.now() - startTime}ms)`);
+        } else {
+          console.log(`[DIAN] ADVERTENCIA: Turnstile no resuelto después de 30 segundos...`);
+          // Esperar un poco más como último recurso
+          await new Promise(r => setTimeout(r, 5000));
+          
+          turnstileValue = await page.evaluate(() => {
+            const input = document.querySelector('input[name="cf-turnstile-response"]');
+            return input && input.value && input.value.length > 50 ? input.value : null;
+          });
+          
+          if (turnstileValue) {
+            turnstileResolved = true;
+            console.log(`[DIAN] Turnstile resuelto después de espera adicional (${Date.now() - startTime}ms)`);
+          }
+        }
+      }
     } catch (e) {
-      console.log(`[DIAN] Turnstile no resuelto automáticamente, esperando más tiempo...`);
-      // Esperar más tiempo - a veces Turnstile tarda más
-      await new Promise(r => setTimeout(r, 5000));
-      
-      // Verificar nuevamente
+      console.log(`[DIAN] Error esperando Turnstile: ${e.message}`);
+      // Verificar una última vez
       turnstileValue = await page.evaluate(() => {
         const input = document.querySelector('input[name="cf-turnstile-response"]');
         return input && input.value && input.value.length > 50 ? input.value : null;
@@ -126,9 +195,7 @@ async function searchByCufe(cufe) {
       
       if (turnstileValue) {
         turnstileResolved = true;
-        console.log(`[DIAN] Turnstile resuelto después de espera adicional (${Date.now() - startTime}ms)`);
-      } else {
-        console.log(`[DIAN] ADVERTENCIA: Turnstile no resuelto, continuando de todas formas...`);
+        console.log(`[DIAN] Turnstile encontrado después del error (${Date.now() - startTime}ms)`);
       }
     }
 
@@ -154,14 +221,31 @@ async function searchByCufe(cufe) {
       };
     }
 
-    // 3) Rellenar CUFE
+    // 3) Rellenar CUFE (solo si no está ya rellenado)
     console.log(`[DIAN] Rellenando CUFE...`);
-    await page.fill('#DocumentKey', '', { timeout: 5000 });
-    await new Promise(r => setTimeout(r, 300));
-    await page.type('#DocumentKey', cufe, { delay: 50 });
+    const currentValue = await page.inputValue('#DocumentKey').catch(() => '');
+    if (currentValue !== cufe) {
+      await page.fill('#DocumentKey', '', { timeout: 5000 });
+      await new Promise(r => setTimeout(r, 300));
+      await page.type('#DocumentKey', cufe, { delay: 50 });
+    } else {
+      console.log(`[DIAN] CUFE ya está rellenado`);
+    }
 
-    // 4) Después de rellenar CUFE, verificar nuevamente que Turnstile sigue activo
+    // 4) Después de rellenar CUFE, interactuar nuevamente y verificar Turnstile
     await new Promise(r => setTimeout(r, 1000)); // Esperar un segundo después de escribir
+    
+    // Hacer scroll y mover mouse para mantener Turnstile activo
+    try {
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight);
+      });
+      await new Promise(r => setTimeout(r, 500));
+      await page.hover('button.search-document');
+      await new Promise(r => setTimeout(r, 500));
+    } catch (e) {
+      console.log(`[DIAN] Error al interactuar antes del clic: ${e.message}`);
+    }
     
     const turnstileBeforeClick = await page.evaluate(() => {
       const input = document.querySelector('input[name="cf-turnstile-response"]');
@@ -171,7 +255,7 @@ async function searchByCufe(cufe) {
     if (!turnstileBeforeClick) {
       console.log(`[DIAN] ADVERTENCIA: Turnstile no está presente antes del clic, esperando más...`);
       // Esperar más tiempo para que Turnstile se reactive
-      await new Promise(r => setTimeout(r, 3000));
+      await new Promise(r => setTimeout(r, 5000));
       
       // Verificar una última vez
       const finalCheck = await page.evaluate(() => {
@@ -180,9 +264,10 @@ async function searchByCufe(cufe) {
       });
       
       if (!finalCheck) {
-        console.log(`[DIAN] ERROR: Turnstile no disponible. El formulario puede fallar.`);
+        console.log(`[DIAN] ERROR CRÍTICO: Turnstile no disponible. El formulario fallará.`);
+        console.log(`[DIAN] Considera usar modo visible (headless: false) o aumentar tiempos de espera.`);
       } else {
-        console.log(`[DIAN] Turnstile verificado antes del clic`);
+        console.log(`[DIAN] Turnstile verificado antes del clic después de espera adicional`);
       }
     } else {
       console.log(`[DIAN] Turnstile verificado antes del clic (${Date.now() - startTime}ms)`);
