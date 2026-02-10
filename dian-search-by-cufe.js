@@ -23,9 +23,11 @@ const SEARCH_URL = `${BASE_URL}/User/SearchDocument`;
 async function searchByCufe(cufe) {
   let browser;
   try {
-    // Usar headless: 'new' para mejor compatibilidad y evitar detección
+    // Usar headless true (boolean) para compatibilidad con Playwright 1.40
+    // Si en el futuro actualizas Playwright a una versión más nueva,
+    // puedes cambiar a headless: 'new' si lo deseas.
     browser = await chromium.launch({
-      headless: 'new',
+      headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
