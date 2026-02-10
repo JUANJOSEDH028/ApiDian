@@ -1,0 +1,92 @@
+{
+  "name": "DIAN - Buscar por CUFE (con Turnstile)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cufe",
+              "name": "cufe",
+              "value": "6667fe1f8018f00e0b631cc9e3d790508f24d474dd3a75d2bc941196e78c8c235990877c2207b82eb5407ff41cbcfc45",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set_cufe",
+      "name": "Definir CUFE",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [400, 300],
+      "notes": "Aquí pones el CUFE a consultar. Puedes usar {{ $json.cufe }} si viene de otro nodo."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3456/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"cufe\": \"{{ $json.cufe }}\"\n}",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "http_api_local",
+      "name": "POST a API Local (Playwright)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [620, 300],
+      "webhookId": "",
+      "notes": "OPCIÓN RECOMENDADA: Llama a tu API local (server-dian-api.js) que usa Playwright para obtener automáticamente el token de Turnstile. Requiere: node server-dian-api.js corriendo en el puerto 3456."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Procesar respuesta de la API local\nconst item = $input.first();\nconst result = item.json;\n\nif (!result.ok) {\n  throw new Error(result.error || 'Error desconocido en la búsqueda');\n}\n\n// La API ya devuelve eventos parseados y HTML\nreturn [{\n  json: {\n    ok: result.ok,\n    eventos: result.eventos || [],\n    html: result.html || '',\n    cufe: $('Definir CUFE').first().json.cufe\n  }\n}];"
+      },
+      "id": "code_process_result",
+      "name": "Procesar resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 300],
+      "notes": "Procesa la respuesta de la API. Los eventos ya vienen parseados del script Playwright."
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "Definir CUFE", "type": "main", "index": 0 }]]
+    },
+    "Definir CUFE": {
+      "main": [[{ "node": "POST a API Local (Playwright)", "type": "main", "index": 0 }]]
+    },
+    "POST a API Local (Playwright)": {
+      "main": [[{ "node": "Procesar resultado", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateCredsSetupCompleted": false }
+}
