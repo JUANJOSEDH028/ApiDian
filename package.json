@@ -1,0 +1,12 @@
+{
+  "name": "dian-contabilidad",
+  "version": "1.0.0",
+  "description": "Scripts para consulta DIAN por CUFE (tokens + búsqueda)",
+  "scripts": {
+    "search": "node dian-search-by-cufe.js",
+    "postinstall": "npx playwright install chromium 2>/dev/null || true"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0"
+  }
+}

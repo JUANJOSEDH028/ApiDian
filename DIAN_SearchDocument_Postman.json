@@ -1,0 +1,281 @@
+{
+  "info": {
+    "name": "DIAN - Buscar Documento (CUFE)",
+    "description": "Colección para consultar documentos de la DIAN por CUFE.\n\n**OPCIÓN RECOMENDADA:** Usa \"API Local - Buscar por CUFE\" (requiere server-dian-api.js corriendo).\n\n**OPCIÓN ALTERNATIVA:** \"POST directo a DIAN\" requiere tokens frescos del navegador.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "dian-search-cufe-collection"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://catalogo-vpfe.dian.gov.co",
+      "type": "string"
+    },
+    {
+      "key": "api_local_url",
+      "value": "http://localhost:3456",
+      "type": "string"
+    },
+    {
+      "key": "request_verification_token",
+      "value": "PEGAR_AQUI_TOKEN_DESDE_NAVEGADOR",
+      "type": "string"
+    },
+    {
+      "key": "cf_turnstile_response",
+      "value": "PEGAR_AQUI_TURNSTILE_DESDE_NAVEGADOR",
+      "type": "string"
+    },
+    {
+      "key": "document_key",
+      "value": "6667fe1f8018f00e0b631cc9e3d790508f24d474dd3a75d2bc941196e78c8c235990877c2207b82eb5407ff41cbcfc45",
+      "type": "string"
+    },
+    {
+      "key": "cookie_token",
+      "value": "JP4nQk2CYJazcRVkmAc5aYGIW_B1jOWgiBrweyFLPlu_HUDTUJdSIR-z94nkqg8zxo9wkVPq6cbsm3hyl0mBmShiwr7KwCTudAHJjN08CB01",
+      "type": "string",
+      "description": "_RequestVerificationToken de la cookie (puede ser diferente del body)"
+    },
+    {
+      "key": "arraffinity",
+      "value": "f31dcc915b36a071e869e003265745d0d1f1aa67137f3a5c53d11b8cd6045ced",
+      "type": "string",
+      "description": "ARRAffinity para sesión de servidor (Azure)"
+    }
+  ],
+  "item": [
+    {
+      "name": "API Local - Buscar por CUFE (RECOMENDADO)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cufe\": \"{{document_key}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{api_local_url}}/search",
+          "host": [
+            "{{api_local_url}}"
+          ],
+          "path": [
+            "search"
+          ]
+        },
+        "description": "**RECOMENDADO:** Llama a tu API local (server-dian-api.js) que usa Playwright para obtener tokens automáticamente.\n\n**Requisitos:**\n- Ejecutar: `node server-dian-api.js` en el servidor\n- El servidor debe estar escuchando en el puerto configurado (por defecto 3456)\n\n**Respuesta:** JSON con { \"ok\": true, \"eventos\": [...], \"html\": \"...\" }"
+      },
+      "response": []
+    },
+    {
+      "name": "POST directo a DIAN (requiere tokens)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=0",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "type": "text"
+          },
+          {
+            "key": "Accept-Language",
+            "value": "es-419,es;q=0.9",
+            "type": "text"
+          },
+          {
+            "key": "Cookie",
+            "value": "_RequestVerificationToken={{cookie_token}}; ARRAffinity={{arraffinity}}; ARRAffinitySameSite={{arraffinity}}",
+            "type": "text",
+            "description": "Cookies de sesión. Actualiza cookie_token y arraffinity desde el navegador."
+          },
+          {
+            "key": "Origin",
+            "value": "https://catalogo-vpfe.dian.gov.co",
+            "type": "text"
+          },
+          {
+            "key": "Referer",
+            "value": "https://catalogo-vpfe.dian.gov.co/",
+            "type": "text"
+          },
+          {
+            "key": "Sec-Ch-Ua",
+            "value": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Microsoft Edge\";v=\"144\"",
+            "type": "text"
+          },
+          {
+            "key": "Sec-Ch-Ua-Mobile",
+            "value": "?0",
+            "type": "text"
+          },
+          {
+            "key": "Sec-Ch-Ua-Platform",
+            "value": "\"Windows\"",
+            "type": "text"
+          },
+          {
+            "key": "Sec-Fetch-Dest",
+            "value": "document",
+            "type": "text"
+          },
+          {
+            "key": "Sec-Fetch-Mode",
+            "value": "navigate",
+            "type": "text"
+          },
+          {
+            "key": "Sec-Fetch-Site",
+            "value": "same-origin",
+            "type": "text"
+          },
+          {
+            "key": "Sec-Fetch-User",
+            "value": "?1",
+            "type": "text"
+          },
+          {
+            "key": "Upgrade-Insecure-Requests",
+            "value": "1",
+            "type": "text"
+          },
+          {
+            "key": "User-Agent",
+            "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "__RequestVerificationToken",
+              "value": "{{request_verification_token}}",
+              "type": "text",
+              "description": "Token anti-CSRF. Obtener del formulario (input hidden) o de la petición en DevTools. En la colección usa la variable."
+            },
+            {
+              "key": "cf-turnstile-response",
+              "value": "{{cf_turnstile_response}}",
+              "type": "text",
+              "description": "Token Cloudflare Turnstile. Copiar desde Payload de la petición real en DevTools."
+            },
+            {
+              "key": "DocumentKey",
+              "value": "{{document_key}}",
+              "type": "text",
+              "description": "CUFE o UUID del documento a consultar."
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/User/SearchDocument",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "User",
+            "SearchDocument"
+          ]
+        },
+        "description": "Consulta un documento electrónico por CUFE o UUID. La respuesta es HTML (página completa). Los tokens deben ser recientes (misma sesión del navegador).\n\n**IMPORTANTE:**\n- Actualiza las variables `cookie_token` y `arraffinity` desde el navegador (DevTools → Network → Request Headers → Cookie)\n- El `cf-turnstile-response` en el body también debe ser fresco\n\n**LIMITACIÓN:** Requiere tokens frescos del navegador. La DIAN suele rechazar peticiones sin cf-turnstile-response válido."
+      },
+      "response": []
+    },
+    {
+      "name": "GET - Página de búsqueda (obtener token)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "type": "text"
+          },
+          {
+            "key": "Accept-Language",
+            "value": "es-419,es;q=0.9",
+            "type": "text"
+          },
+          {
+            "key": "Sec-Ch-Ua",
+            "value": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Microsoft Edge\";v=\"144\"",
+            "type": "text"
+          },
+          {
+            "key": "Sec-Ch-Ua-Mobile",
+            "value": "?0",
+            "type": "text"
+          },
+          {
+            "key": "Sec-Ch-Ua-Platform",
+            "value": "\"Windows\"",
+            "type": "text"
+          },
+          {
+            "key": "Sec-Fetch-Dest",
+            "value": "document",
+            "type": "text"
+          },
+          {
+            "key": "Sec-Fetch-Mode",
+            "value": "navigate",
+            "type": "text"
+          },
+          {
+            "key": "Sec-Fetch-Site",
+            "value": "none",
+            "type": "text"
+          },
+          {
+            "key": "Sec-Fetch-User",
+            "value": "?1",
+            "type": "text"
+          },
+          {
+            "key": "Upgrade-Insecure-Requests",
+            "value": "1",
+            "type": "text"
+          },
+          {
+            "key": "User-Agent",
+            "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/User/SearchDocument",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "User",
+            "SearchDocument"
+          ]
+        },
+        "description": "Obtiene la página de búsqueda. En la respuesta HTML puedes buscar el input name=\"__RequestVerificationToken\" para extraer el value. El cf-turnstile-response solo se genera con JavaScript en el navegador, por eso para Turnstile sigue siendo necesario copiarlo desde una búsqueda real."
+      },
+      "response": []
+    }
+  ]
+}
