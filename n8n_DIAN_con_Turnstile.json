@@ -55,7 +55,7 @@
         "specifyBody": "json",
         "jsonBody": "={\n  \"cufe\": \"{{ $json.cufe }}\"\n}",
         "options": {
-          "timeout": 120000,
+          "timeout": 300000,
           "response": {
             "response": {
               "responseFormat": "json"
@@ -63,8 +63,8 @@
           },
           "retry": {
             "retry": {
-              "maxRetries": 2,
-              "retryOnFail": true
+              "maxRetries": 1,
+              "retryOnFail": false
             }
           }
         },
@@ -88,7 +88,7 @@
       "typeVersion": 4.2,
       "position": [840, 300],
       "webhookId": "",
-      "notes": "Llama a la API DIAN (server-dian-api.js) que usa Playwright para obtener automáticamente el token de Turnstile. URL configurable con variable de entorno DIAN_API_URL. Timeout: 120 segundos (Playwright puede tardar)."
+      "notes": "Llama a la API DIAN (server-dian-api.js) que usa Playwright para obtener automáticamente el token de Turnstile. URL configurable con variable de entorno DIAN_API_URL. Timeout: 300 segundos (5 minutos) - Playwright puede tardar en resolver Turnstile y procesar la búsqueda."
     },
     {
       "parameters": {

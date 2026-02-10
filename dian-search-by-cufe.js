@@ -64,14 +64,26 @@ async function searchByCufe(cufe) {
     });
 
     // Esperar a que la página cargue completamente
-    await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+    await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
 
     // 2) Esperar a que exista el input del CUFE
-    await page.waitForSelector('#DocumentKey', { timeout: 15000 });
+    await page.waitForSelector('#DocumentKey', { timeout: 20000 });
 
-    // Esperar más tiempo para que Turnstile se resuelva completamente
-    // Turnstile puede tardar 5-10 segundos en resolverse automáticamente
-    await new Promise(r => setTimeout(r, 10000));
+    // Esperar a que Turnstile se resuelva completamente
+    // Turnstile puede tardar 5-15 segundos en resolverse automáticamente
+    // Esperamos hasta que el input cf-turnstile-response tenga un valor
+    try {
+      await page.waitForFunction(
+        () => {
+          const input = document.querySelector('input[name="cf-turnstile-response"]');
+          return input && input.value && input.value.length > 0;
+        },
+        { timeout: 20000 }
+      );
+    } catch (e) {
+      // Si no se resuelve en 20 segundos, esperamos 5 segundos más y continuamos
+      await new Promise(r => setTimeout(r, 5000));
+    }
 
     // Verificar si hay error antes de continuar
     const errorCheck = await page.evaluate(() => {
@@ -95,13 +107,13 @@ async function searchByCufe(cufe) {
       };
     }
 
-    // 3) Rellenar CUFE con delay humano
+    // 3) Rellenar CUFE con delay humano (reducido para velocidad)
     await page.fill('#DocumentKey', '', { timeout: 5000 });
-    await new Promise(r => setTimeout(r, 500));
-    await page.type('#DocumentKey', cufe, { delay: 100 });
+    await new Promise(r => setTimeout(r, 300));
+    await page.type('#DocumentKey', cufe, { delay: 80 });
 
     // 4) Esperar un momento antes de hacer clic
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 800));
 
     // 5) Clic en Buscar y esperar navegación
     await Promise.all([
@@ -109,8 +121,10 @@ async function searchByCufe(cufe) {
       page.click('button.search-document', { delay: 200 })
     ]);
 
-    // Esperar a que la respuesta cargue
-    await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+    // Esperar a que la respuesta cargue (reducido timeout)
+    await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+    // Espera adicional mínima para asegurar que el contenido esté renderizado
+    await new Promise(r => setTimeout(r, 2000));
 
     // 6) Verificar si la respuesta contiene error
     const html = await page.content();
