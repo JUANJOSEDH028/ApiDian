@@ -1,5 +1,20 @@
 version: "3.8"
 services:
+  # ───── API DIAN ─────
+  dian-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    container_name: dian-api
+    ports:
+      - "127.0.0.1:3456:3456"
+    environment:
+      PORT: 3456
+      DIAN_MODE: ${DIAN_MODE:-headless}
+    networks:
+      - n8n-network
+
   postgres_n8n:
     image: postgres:14
     restart: always
@@ -11,6 +26,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - /tmp/n8n:/tmp
+    networks:
+      - n8n-network
 
   redis_n8n:
     image: redis:7-alpine
@@ -21,6 +38,8 @@ services:
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes --requirepass JUANJOse0228
+    networks:
+      - n8n-network
 
   n8n:
     image: docker.n8n.io/n8nio/n8n
@@ -28,14 +47,10 @@ services:
     container_name: n8n
     ports:
       - "127.0.0.1:5678:5678"
-    # ───── Configuración para acceso al host (API DIAN) ─────
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
       # ───── API DIAN ─────
-      # URL de la API DIAN corriendo en el host
-      # Si host.docker.internal no funciona, usa: http://10.0.0.63:3456
-      DIAN_API_URL: http://host.docker.internal:3456
+      # URL de la API DIAN (mismo contenedor Docker, misma red)
+      DIAN_API_URL: http://dian-api:3456
       
       # ───── Base de datos LOCAL ─────
       DB_TYPE: postgresdb
@@ -99,6 +114,14 @@ services:
     depends_on:
       - postgres_n8n
       - redis_n8n
+      - dian-api
+    networks:
+      - n8n-network
+
+# Redes
+networks:
+  n8n-network:
+    driver: bridge
 
 # Volúmenes externos (usar los existentes)
 volumes:

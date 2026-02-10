@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+*.md
+docker-compose*.yml
+Dockerfile
+.dockerignore
+n8n_*.json
+DIAN_*.json
+COMO_*.md
+INSTRUCCIONES_*.md
+SOLUCION_*.md
+DIAGNOSTICO_*.md
+diagnostico-*.sh
+*.xml
