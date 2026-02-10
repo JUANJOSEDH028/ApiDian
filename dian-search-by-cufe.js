@@ -21,20 +21,24 @@ const BASE_URL = 'https://catalogo-vpfe.dian.gov.co';
 const SEARCH_URL = `${BASE_URL}/User/SearchDocument`;
 
 async function searchByCufe(cufe) {
+  const startTime = Date.now();
   let browser;
   try {
+    console.log(`[DIAN] Iniciando búsqueda para CUFE: ${cufe.substring(0, 20)}...`);
+    
     // Usar headless true (boolean) para compatibilidad con Playwright 1.40
-    // Si en el futuro actualizas Playwright a una versión más nueva,
-    // puedes cambiar a headless: 'new' si lo deseas.
     browser = await chromium.launch({
       headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-blink-features=AutomationControlled',
-        '--disable-dev-shm-usage'
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-software-rasterizer'
       ]
     });
+    console.log(`[DIAN] Navegador iniciado (${Date.now() - startTime}ms)`);
 
     const context = await browser.newContext({
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0',
@@ -58,31 +62,34 @@ async function searchByCufe(cufe) {
     });
 
     // 1) Ir a la página de búsqueda (genera token y Turnstile)
+    console.log(`[DIAN] Cargando página de búsqueda...`);
     await page.goto(SEARCH_URL, { 
       waitUntil: 'domcontentloaded', 
-      timeout: 30000 
+      timeout: 25000 
     });
+    console.log(`[DIAN] Página cargada (${Date.now() - startTime}ms)`);
 
-    // Esperar a que la página cargue completamente
-    await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+    // Esperar a que exista el input del CUFE (más rápido que networkidle)
+    await page.waitForSelector('#DocumentKey', { timeout: 15000 });
+    console.log(`[DIAN] Input CUFE encontrado (${Date.now() - startTime}ms)`);
 
-    // 2) Esperar a que exista el input del CUFE
-    await page.waitForSelector('#DocumentKey', { timeout: 20000 });
-
-    // Esperar a que Turnstile se resuelva completamente
-    // Turnstile puede tardar 5-15 segundos en resolverse automáticamente
-    // Esperamos hasta que el input cf-turnstile-response tenga un valor
+    // Esperar a que Turnstile se resuelva (máximo 15 segundos, pero salimos antes si está listo)
+    console.log(`[DIAN] Esperando resolución de Turnstile...`);
+    let turnstileResolved = false;
     try {
       await page.waitForFunction(
         () => {
           const input = document.querySelector('input[name="cf-turnstile-response"]');
-          return input && input.value && input.value.length > 0;
+          return input && input.value && input.value.length > 50; // Turnstile tokens son largos
         },
-        { timeout: 20000 }
+        { timeout: 15000, polling: 500 } // Verifica cada 500ms
       );
+      turnstileResolved = true;
+      console.log(`[DIAN] Turnstile resuelto (${Date.now() - startTime}ms)`);
     } catch (e) {
-      // Si no se resuelve en 20 segundos, esperamos 5 segundos más y continuamos
-      await new Promise(r => setTimeout(r, 5000));
+      // Si no se resuelve, esperamos 3 segundos más y continuamos de todas formas
+      console.log(`[DIAN] Turnstile no resuelto en tiempo, esperando 3s más...`);
+      await new Promise(r => setTimeout(r, 3000));
     }
 
     // Verificar si hay error antes de continuar
@@ -107,13 +114,15 @@ async function searchByCufe(cufe) {
       };
     }
 
-    // 3) Rellenar CUFE con delay humano (reducido para velocidad)
+    // 3) Rellenar CUFE (más rápido)
+    console.log(`[DIAN] Rellenando CUFE...`);
     await page.fill('#DocumentKey', '', { timeout: 5000 });
-    await new Promise(r => setTimeout(r, 300));
-    await page.type('#DocumentKey', cufe, { delay: 80 });
+    await new Promise(r => setTimeout(r, 200));
+    await page.type('#DocumentKey', cufe, { delay: 50 });
 
     // 4) Esperar un momento antes de hacer clic
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 500));
+    console.log(`[DIAN] Haciendo clic en Buscar (${Date.now() - startTime}ms)`);
 
     // 5) Clic en Buscar y esperar navegación
     await Promise.all([
@@ -121,10 +130,11 @@ async function searchByCufe(cufe) {
       page.click('button.search-document', { delay: 200 })
     ]);
 
-    // Esperar a que la respuesta cargue (reducido timeout)
-    await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
-    // Espera adicional mínima para asegurar que el contenido esté renderizado
-    await new Promise(r => setTimeout(r, 2000));
+    // Esperar a que la respuesta cargue
+    console.log(`[DIAN] Esperando respuesta de DIAN...`);
+    await page.waitForLoadState('networkidle', { timeout: 12000 }).catch(() => {});
+    await new Promise(r => setTimeout(r, 1500)); // Espera mínima para renderizado
+    console.log(`[DIAN] Respuesta recibida (${Date.now() - startTime}ms)`);
 
     // 6) Verificar si la respuesta contiene error
     const html = await page.content();
@@ -180,10 +190,14 @@ async function searchByCufe(cufe) {
     }).catch(() => []);
 
     await browser.close();
+    const totalTime = Date.now() - startTime;
+    console.log(`[DIAN] Búsqueda completada exitosamente en ${totalTime}ms. Eventos encontrados: ${eventos.length}`);
 
     return { ok: true, html, eventos };
   } catch (err) {
     if (browser) await browser.close().catch(() => {});
+    const totalTime = Date.now() - startTime;
+    console.error(`[DIAN] Error después de ${totalTime}ms:`, err.message);
     return { ok: false, error: err.message, html: null, eventos: [] };
   }
 }

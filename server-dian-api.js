@@ -14,9 +14,16 @@
  */
 
 const http = require('http');
-// Cambiar a dian-search-by-cufe-visible.js si la versión headless es detectada
-const { searchByCufe } = require('./dian-search-by-cufe.js');
-// const { searchByCufe } = require('./dian-search-by-cufe-visible.js');
+// Usar versión visible si DIAN_MODE=visible (más confiable pero más lento)
+// Por defecto usa headless (más rápido)
+const USE_VISIBLE = process.env.DIAN_MODE === 'visible';
+const { searchByCufe } = USE_VISIBLE 
+  ? require('./dian-search-by-cufe-visible.js')
+  : require('./dian-search-by-cufe.js');
+
+if (USE_VISIBLE) {
+  console.log('⚠️  Modo VISIBLE activado (más confiable pero más lento)');
+}
 
 const PORT = process.env.PORT || 3456;
 
@@ -55,11 +62,17 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  const requestStartTime = Date.now();
   try {
+    console.log(`[API] Procesando búsqueda para CUFE: ${cufe.substring(0, 20)}...`);
     const result = await searchByCufe(cufe.trim());
+    const requestTime = Date.now() - requestStartTime;
+    console.log(`[API] Respuesta enviada en ${requestTime}ms. OK: ${result.ok}`);
     res.writeHead(200);
     res.end(JSON.stringify(result));
   } catch (err) {
+    const requestTime = Date.now() - requestStartTime;
+    console.error(`[API] Error después de ${requestTime}ms:`, err.message);
     res.writeHead(500);
     res.end(JSON.stringify({ ok: false, error: err.message }));
   }
