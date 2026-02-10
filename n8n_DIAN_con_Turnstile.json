@@ -18,30 +18,53 @@
               "name": "cufe",
               "value": "6667fe1f8018f00e0b631cc9e3d790508f24d474dd3a75d2bc941196e78c8c235990877c2207b82eb5407ff41cbcfc45",
               "type": "string"
+            },
+            {
+              "id": "api_url",
+              "name": "api_url",
+              "value": "={{ $env.DIAN_API_URL || 'http://127.0.0.1:3456' }}",
+              "type": "string"
             }
           ]
         },
         "options": {}
       },
       "id": "set_cufe",
-      "name": "Definir CUFE",
+      "name": "Configurar CUFE y API",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [400, 300],
-      "notes": "Aquí pones el CUFE a consultar. Puedes usar {{ $json.cufe }} si viene de otro nodo."
+      "notes": "Configura el CUFE a consultar y la URL de la API. Puedes usar {{ $json.cufe }} si viene de otro nodo. La URL de la API se puede configurar con la variable de entorno DIAN_API_URL (por defecto: http://127.0.0.1:3456). Si n8n y la API están en servidores diferentes, configura DIAN_API_URL=http://IP_SERVIDOR:3456"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar CUFE antes de enviar\nconst item = $input.first();\nconst cufe = item.json.cufe;\n\nif (!cufe || typeof cufe !== 'string') {\n  throw new Error('CUFE es requerido y debe ser una cadena de texto');\n}\n\n// Validar formato básico de CUFE (debe tener al menos 64 caracteres)\nconst cufeTrimmed = cufe.trim();\nif (cufeTrimmed.length < 64) {\n  throw new Error(`CUFE inválido: debe tener al menos 64 caracteres. Recibido: ${cufeTrimmed.length}`);\n}\n\n// Validar que solo contenga caracteres hexadecimales\nif (!/^[0-9a-fA-F]+$/.test(cufeTrimmed)) {\n  throw new Error('CUFE inválido: solo debe contener caracteres hexadecimales (0-9, a-f)');\n}\n\nreturn [{ json: { ...item.json, cufe: cufeTrimmed } }];"
+      },
+      "id": "code_validate",
+      "name": "Validar CUFE",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [620, 300],
+      "notes": "Valida que el CUFE tenga el formato correcto antes de enviarlo a la API."
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:3456/search",
+        "url": "={{ $json.api_url }}/search",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"cufe\": \"{{ $json.cufe }}\"\n}",
         "options": {
-          "timeout": 60000,
+          "timeout": 120000,
           "response": {
             "response": {
               "responseFormat": "json"
+            }
+          },
+          "retry": {
+            "retry": {
+              "maxRetries": 2,
+              "retryOnFail": true
             }
           }
         },
@@ -51,39 +74,107 @@
             {
               "name": "Content-Type",
               "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
             }
           ]
         }
       },
       "id": "http_api_local",
-      "name": "POST a API Local (Playwright)",
+      "name": "POST a API DIAN (Playwright)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [620, 300],
+      "position": [840, 300],
       "webhookId": "",
-      "notes": "OPCIÓN RECOMENDADA: Llama a tu API local (server-dian-api.js) que usa Playwright para obtener automáticamente el token de Turnstile. Requiere: node server-dian-api.js corriendo en el puerto 3456."
+      "notes": "Llama a la API DIAN (server-dian-api.js) que usa Playwright para obtener automáticamente el token de Turnstile. URL configurable con variable de entorno DIAN_API_URL. Timeout: 120 segundos (Playwright puede tardar)."
     },
     {
       "parameters": {
-        "jsCode": "// Procesar respuesta de la API local\nconst item = $input.first();\nconst result = item.json;\n\nif (!result.ok) {\n  throw new Error(result.error || 'Error desconocido en la búsqueda');\n}\n\n// La API ya devuelve eventos parseados y HTML\nreturn [{\n  json: {\n    ok: result.ok,\n    eventos: result.eventos || [],\n    html: result.html || '',\n    cufe: $('Definir CUFE').first().json.cufe\n  }\n}];"
+        "jsCode": "// Procesar respuesta de la API local con mejor manejo de errores\nconst item = $input.first();\nconst result = item.json;\n\n// Verificar si hay error HTTP\nif (item.json.error) {\n  throw new Error(`Error HTTP: ${item.json.error.message || item.json.error}`);\n}\n\n// Verificar respuesta de la API\nif (!result || typeof result !== 'object') {\n  throw new Error('Respuesta inválida de la API DIAN');\n}\n\nif (!result.ok) {\n  const errorMsg = result.error || 'Error desconocido en la búsqueda';\n  const errorId = result.errorId || null;\n  \n  return [{\n    json: {\n      ok: false,\n      error: errorMsg,\n      errorId: errorId,\n      cufe: $('Configurar CUFE y API').first().json.cufe,\n      eventos: [],\n      html: result.html || null\n    }\n  }];\n}\n\n// Respuesta exitosa\nconst eventos = result.eventos || [];\nconst eventosConCodigo030 = eventos.filter(e => e.codigo === '030');\n\nreturn [{\n  json: {\n    ok: true,\n    cufe: $('Configurar CUFE y API').first().json.cufe,\n    eventos: eventos,\n    eventosCount: eventos.length,\n    tieneCodigo030: eventosConCodigo030.length > 0,\n    eventos030: eventosConCodigo030,\n    html: result.html || '',\n    timestamp: new Date().toISOString()\n  }\n}];"
       },
       "id": "code_process_result",
       "name": "Procesar resultado",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [840, 300],
-      "notes": "Procesa la respuesta de la API. Los eventos ya vienen parseados del script Playwright."
+      "position": [1060, 300],
+      "notes": "Procesa la respuesta de la API. Extrae eventos, valida código 030 (Recibido), y estructura la respuesta para uso posterior en el flujo."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check_ok",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if_success",
+      "name": "¿Búsqueda exitosa?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1280, 300],
+      "notes": "Divide el flujo según si la búsqueda fue exitosa o no."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatear respuesta exitosa para logging o almacenamiento\nconst item = $input.first();\n\nreturn [{\n  json: {\n    mensaje: `✅ CUFE encontrado: ${item.json.cufe}`,\n    eventos: item.json.eventos,\n    tieneCodigo030: item.json.tieneCodigo030,\n    resumen: item.json.tieneCodigo030 \n      ? `Documento recibido (código 030) con ${item.json.eventosCount} evento(s)`\n      : `Documento encontrado con ${item.json.eventosCount} evento(s)`,\n    timestamp: item.json.timestamp\n  }\n}];"
+      },
+      "id": "code_format_success",
+      "name": "Formatear éxito",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 200],
+      "notes": "Formatea la respuesta exitosa para logging o almacenamiento."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatear respuesta de error\nconst item = $input.first();\n\nreturn [{\n  json: {\n    mensaje: `❌ Error al buscar CUFE: ${item.json.cufe}`,\n    error: item.json.error,\n    errorId: item.json.errorId,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "code_format_error",
+      "name": "Formatear error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 400],
+      "notes": "Formatea la respuesta de error para logging o notificaciones."
     }
   ],
   "connections": {
     "Manual Trigger": {
-      "main": [[{ "node": "Definir CUFE", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Configurar CUFE y API", "type": "main", "index": 0 }]]
     },
-    "Definir CUFE": {
-      "main": [[{ "node": "POST a API Local (Playwright)", "type": "main", "index": 0 }]]
+    "Configurar CUFE y API": {
+      "main": [[{ "node": "Validar CUFE", "type": "main", "index": 0 }]]
     },
-    "POST a API Local (Playwright)": {
+    "Validar CUFE": {
+      "main": [[{ "node": "POST a API DIAN (Playwright)", "type": "main", "index": 0 }]]
+    },
+    "POST a API DIAN (Playwright)": {
       "main": [[{ "node": "Procesar resultado", "type": "main", "index": 0 }]]
+    },
+    "Procesar resultado": {
+      "main": [[{ "node": "¿Búsqueda exitosa?", "type": "main", "index": 0 }]]
+    },
+    "¿Búsqueda exitosa?": {
+      "main": [
+        [{ "node": "Formatear éxito", "type": "main", "index": 0 }],
+        [{ "node": "Formatear error", "type": "main", "index": 0 }]
+      ]
     }
   },
   "pinData": {},

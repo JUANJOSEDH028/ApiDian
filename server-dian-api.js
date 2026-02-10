@@ -65,6 +65,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`DIAN API: http://localhost:${PORT}  →  POST /search con { "cufe": "..." }`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`DIAN API: http://0.0.0.0:${PORT}  →  POST /search con { "cufe": "..." }`);
+  console.log(`DIAN API también disponible en: http://localhost:${PORT} y http://127.0.0.1:${PORT}`);
 });
