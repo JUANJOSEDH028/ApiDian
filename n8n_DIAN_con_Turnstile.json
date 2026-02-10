@@ -22,7 +22,7 @@
             {
               "id": "api_url",
               "name": "api_url",
-              "value": "={{ $env.DIAN_API_URL || 'http://127.0.0.1:3456' }}",
+              "value": "={{ $env.DIAN_API_URL || 'http://host.docker.internal:3456' }}",
               "type": "string"
             }
           ]
@@ -34,7 +34,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [400, 300],
-      "notes": "Configura el CUFE a consultar y la URL de la API. Puedes usar {{ $json.cufe }} si viene de otro nodo. La URL de la API se puede configurar con la variable de entorno DIAN_API_URL (por defecto: http://127.0.0.1:3456). Si n8n y la API están en servidores diferentes, configura DIAN_API_URL=http://IP_SERVIDOR:3456"
+      "notes": "Configura el CUFE a consultar y la URL de la API. Puedes usar {{ $json.cufe }} si viene de otro nodo. La URL de la API se puede configurar con la variable de entorno DIAN_API_URL. Por defecto usa http://host.docker.internal:3456 (requiere extra_hosts en docker-compose). Alternativas: DIAN_API_URL=http://10.0.0.63:3456 (IP del servidor) o http://172.17.0.1:3456 (gateway Docker)"
     },
     {
       "parameters": {
